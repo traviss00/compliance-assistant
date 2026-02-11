@@ -79,37 +79,6 @@ Regulators examine three things in compliance systems: **explainability**, **aud
 ### Setup (Local Machine)
 
 ```bash
-# Clone and navigate
-git clone <repo-url>
-cd compliance-assistant
-
-# Create virtual environment
-python -m venv venv
-
-# Activate (choose for your OS):
-# Windows (Command Prompt):
-venv\Scripts\activate
-# Windows (PowerShell):
-.\venv\Scripts\Activate.ps1
-# Mac/Linux:
-source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Set API key (optional - system works without it)
-# Windows Command Prompt:
-set OPENAI_API_KEY=sk-your-key-here
-# Windows PowerShell:
-$env:OPENAI_API_KEY="sk-your-key-here"
-# Mac/Linux:
-export OPENAI_API_KEY="sk-your-key-here"
-
-# Start server
-python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-### Setup (Local Machine)
-
-```bash
 git clone <repo-url>
 cd compliance-assistant
 

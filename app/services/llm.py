@@ -217,12 +217,12 @@ def _call_openai(
     except Exception as e:
         raise Exception(f"Failed to initialize OpenAI client: {str(e)}")
     
-    logger.info(f"[{check_id}] Calling OpenAI API (model: gpt-4)...")
+    logger.info(f"[{check_id}] Calling OpenAI API (model: gpt-4o)...")
     
     try:
         # Call API
         response = client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-4o",
             messages=[
                 {
                     "role": "system",

@@ -275,7 +275,7 @@ def summarize_findings(findings):
     try:
         # Try OpenAI first
         response = openai.ChatCompletion.create(
-            model="gpt-4",
+            model="gpt-4o",
             messages=[...],
             temperature=0
         )
