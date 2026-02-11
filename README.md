@@ -682,15 +682,22 @@ Every assessment receives a unique `check_id` (timestamp-based). All actions are
 
 #### Option 1: GitHub Codespaces (Recommended)
 
-GitHub Codespaces provides a full development environment in your browser:
+GitHub Codespaces provides a fully configured development environment in your browser with zero setup required:
 
-1. Open this repository in GitHub
+1. Open this repository in GitHub: https://github.com/traviss00/compliance-assistant
 2. Click **Code** → **Codespaces** → **Create codespace on main**
-3. Wait for the environment to initialize
-4. In the terminal, run:
+3. Wait 2-3 minutes for the environment to initialize
+
+The `.devcontainer/devcontainer.json` automatically:
+- ✓ Sets up Python 3.11 environment
+- ✓ Installs all dependencies via `pip install -r requirements.txt`
+- ✓ Configures VS Code with Python extensions (Python, Pylance, Debugpy)
+- ✓ Enables code formatting (black) and linting (pylint)
+- ✓ Forwards port 8000 for the application
+
+4. Once ready, in the terminal run:
 
 ```bash
-pip install -r requirements.txt
 export OPENAI_API_KEY="your-key-here"  # Optional
 python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
