@@ -1,0 +1,96 @@
+customer_name,country,account_open_date,transaction_amount,verification_status
+John Smith,Canada,2023-06-15,50000,verified
+Jane Doe,Iran,2024-01-15,500000,pending
+Vladimir Putin,Russia,2024-02-05,100000,verified
+Ahmed Hassan,Syria,2024-02-10,2500000,incomplete
+Maria Garcia,Spain,2023-12-01,75000,verified
+Chen Wei,North Korea,2024-02-09,150000,expired
+Sarah Johnson,United Kingdom,2024-02-01,45000,verified
+Mohammed Al-Rashid,Yemen,2024-01-20,300000,rejected
+Lisa Mueller,Germany,2023-09-10,80000,verified
+Kim Jong-un,North Korea,2024-02-08,500000,verified
+Robert Thompson,United States,2023-03-22,120000,verified
+Elena Kowalski,Poland,2023-11-05,65000,verified
+Hiroshi Yamamoto,Japan,2024-01-10,95000,verified
+Sophie Dubois,France,2023-08-17,110000,verified
+Carlos Rodriguez,Mexico,2023-07-30,55000,verified
+Anna Schmidt,Austria,2024-02-03,70000,pending
+Marcus Johnson,Canada,2023-05-14,180000,verified
+Fatima Al-Mansouri,United Arab Emirates,2023-10-20,250000,verified
+David Cohen,Israel,2023-09-28,135000,verified
+Olga Petrov,Russia,2024-02-07,5000000,incomplete
+Bashar al-Assad,Syria,2024-02-09,2000000,rejected
+Michael O'Brien,Ireland,2023-12-12,90000,verified
+Sophia Rossi,Italy,2023-04-08,125000,verified
+James Wilson,Australia,2023-02-25,155000,verified
+Nadia Bouleif,Algeria,2024-01-15,300000,pending
+Hassan Ibrahim,Somalia,2024-01-25,400000,incomplete
+Kwame Mensah,Ghana,2023-06-03,75000,verified
+Priya Patel,India,2023-08-19,200000,verified
+Zhang Liu,China,2024-01-12,350000,verified
+Yuki Tanaka,Japan,2024-02-02,165000,verified
+Amara Johnson,Kenya,2023-11-08,85000,verified
+Nicolas Dupont,Belgium,2023-07-21,105000,verified
+Isabella Torres,Argentina,2023-09-14,145000,verified
+Sergei Volkov,Russia,2024-02-06,3500000,incomplete
+Mariam Hassan,Sudan,2024-01-30,280000,pending
+Juan Garcia,Colombia,2023-10-11,95000,verified
+Lucia Rossi,Italy,2024-01-20,115000,verified
+Xi Jinping,China,2024-02-04,1000000,verified
+Ahmed Saleh,Yemen,2024-02-01,350000,incomplete
+Maria Santos,Brazil,2023-12-27,160000,verified
+Andrei Ivanov,Russia,2024-02-08,4200000,rejected
+Leila Al-Rashid,Iraq,2024-01-18,500000,incomplete
+Thomas Mueller,Switzerland,2023-06-09,185000,verified
+Fatima Al-Dosari,Saudi Arabia,2023-05-24,220000,verified
+Marcus Brown,Singapore,2024-01-31,175000,verified
+Amelia Chen,Taiwan,2023-11-16,105000,verified
+Diego Lopez,Chile,2023-08-05,135000,verified
+Zahra Mohammadi,Iran,2024-02-02,1500000,pending
+Anna Kovalenko,Ukraine,2023-09-22,95000,verified
+Rashid Al-Maktoum,United Arab Emirates,2024-01-25,800000,incomplete
+Lucas Silva,Portugal,2023-04-18,70000,verified
+Noor Khalil,Palestine,2024-01-29,240000,incomplete
+Sofia Novak,Czech Republic,2023-10-03,115000,verified
+Amir Hassan,Sudan,2024-02-09,350000,rejected
+Vikram Patel,India,2024-01-15,275000,verified
+Kenji Sato,Japan,2023-12-11,130000,verified
+Bianca Rosa,Brazil,2024-01-22,185000,pending
+Sergei Orlov,Russia,2024-02-05,2800000,incomplete
+Yasmin Al-Noor,Libya,2024-01-10,420000,incomplete
+Patrick Murphy,Ireland,2023-07-14,145000,verified
+Lucia Ferrero,Italy,2023-11-29,125000,verified
+Ahmed Mohammed,Ethiopia,2024-01-20,165000,pending
+Dimitri Papadopoulos,Greece,2023-05-09,155000,verified
+Samantha Williams,Australia,2024-02-01,195000,verified
+Hana Nowak,Poland,2023-09-07,85000,verified
+Raj Kumar,India,2024-01-25,310000,incomplete
+Elena Russo,Italy,2024-01-18,135000,verified
+Francisco Sanchez,Spain,2023-08-22,120000,verified
+Leah Cohen,Israel,2023-12-03,170000,verified
+Nikolai Petrov,Russia,2024-02-03,3900000,incomplete
+Yasmine Al-Zahra,Syria,2024-02-08,1800000,incomplete
+Eric Schmidt,Germany,2023-10-28,165000,verified
+Marta Kowalski,Poland,2024-01-12,95000,verified
+Robert Chen,Taiwan,2023-06-17,145000,verified
+Amina Hassan,Somalia,2024-02-04,380000,incomplete
+Sophia Müller,Germany,2023-11-20,155000,verified
+Mohammed Salim,UAE,2024-01-28,520000,pending
+Victor Sokolov,Russia,2024-02-07,5500000,rejected
+Patricia Gonzalez,Mexico,2023-09-11,105000,verified
+Omar Al-Sayyari,Yemen,2024-02-05,290000,incomplete
+Diana Rossi,Italy,2024-01-30,140000,verified
+Dmitri Lebedev,Russia,2024-02-06,4100000,incomplete
+Yasmin Al-Rashid,North Korea,2024-01-15,600000,expired
+Andres Morales,Peru,2023-07-25,115000,verified
+Isabella Mancini,Italy,2024-01-09,125000,verified
+Hassan Abu-Zahra,Palestine,2024-02-01,310000,incomplete
+Viktor Smirnov,Russia,2024-02-04,2500000,incomplete
+Amara Al-Hassan,Libya,2024-01-22,440000,incomplete
+Fernando Rodriguez,Spain,2024-01-14,160000,verified
+Giulia Ferri,Italy,2023-10-19,130000,verified
+Ali Mohammed,Iraq,2024-01-31,380000,incomplete
+Aleksandr Zhukov,Russia,2024-02-02,3200000,rejected
+Samira Al-Mansouri,Iran,2024-02-07,1300000,pending
+Henrik Bergström,Sweden,2023-08-09,175000,verified
+Lucia Colombo,Italy,2023-12-28,145000,verified
