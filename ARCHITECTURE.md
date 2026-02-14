@@ -116,6 +116,225 @@ report = {
 
 ---
 
+## Multi-Provider LLM Integration
+
+The system supports multiple LLM providers for finding summarization, with graceful fallback to rule-based summary if any provider is unavailable.
+
+### Architecture: Provider Dispatch Pattern
+
+```python
+def summarize_findings(dataset_info, findings, check_id, logger):
+    """Route to configured LLM provider"""
+    
+    llm_provider = os.getenv("LLM_PROVIDER", "").lower()
+    
+    try:
+        if llm_provider == "openai":
+            return _call_openai(prompt, check_id, logger)
+        elif llm_provider == "huggingface":
+            return _call_huggingface(prompt, check_id, logger)
+        else:
+            # No valid provider configured
+            raise Exception(f"LLM_PROVIDER not set: {llm_provider or 'empty'}")
+    except Exception as e:
+        logger.warning(f"LLM failed: {e}. Using rule-based fallback.")
+        return _fallback_summarization(findings, logger, check_id)
+```
+
+### Supported Providers
+
+#### OpenAI (Recommended for Production)
+
+**Configuration**:
+```bash
+LLM_PROVIDER=openai
+OPENAI_API_KEY=sk-your-key-here
+```
+
+**Models** (fastest → most capable):
+- `gpt-3.5-turbo` (~$0.0005/request) - **Recommended** for PoC
+- `gpt-4o` (~$0.003/request) - Higher quality, recommended for production
+- `gpt-4-turbo` (~$0.01/request) - Best quality
+
+**Implementation** (`_call_openai`):
+- Uses OpenAI Python SDK
+- Validates JSON response structure
+- Enforces risk classification enum (Low/Medium/High)
+- Graceful error handling and fallback
+
+**Cost Example**: 1000 assessments/day at $0.0005/request = ~$0.50/day
+
+#### Hugging Face Chat Completions API (Free Tier Available)
+
+**Configuration**:
+```bash
+LLM_PROVIDER=huggingface
+HUGGINGFACE_API_KEY=hf_your-token-here
+```
+
+**Endpoint**: `https://router.huggingface.co/v1/chat/completions` (OpenAI-compatible)
+
+**Models** (with fallback support):
+Default list (automatically tried if primary fails):
+- `google/flan-t5-small` - Fast, small model
+- `mistralai/Mistral-7B-Instruct-v0.1` - Balanced performance
+- `meta-llama/Llama-2-7b-chat-hf` - **Recommended** (open-source, reliable)
+- `meta-llama/Llama-2-13b-chat-hf` - More capable (13B parameters, slower)
+- `moonshotai/Kimi-K2-Instruct-0905:groq` - Via Groq acceleration
+
+**Override models** via environment:
+```bash
+# Use specific model
+HUGGINGFACE_MODEL=mistralai/Mistral-7B-Instruct-v0.1
+
+# Add fallback models (comma-separated)
+HUGGINGFACE_MODEL_FALLBACK=meta-llama/Llama-2-13b-chat-hf,google/flan-t5-small
+```
+
+**Implementation** (`_call_huggingface`):
+- Uses requests library to call Hugging Face Chat Completions endpoint
+- OpenAI-compatible API format (messages/choices structure)
+- Automatic model fallback if primary model unavailable (410 Gone)
+- Extracts JSON from LLM response
+- Validates response structure and content
+
+**Cost**: Free tier (~30 requests/min) or paid plans for higher volume
+
+**Advantages**:
+- No vendor lock-in (uses open-source models)
+- OpenAI-compatible API format (easy to swap providers)
+- Models are open-source (can self-host if needed)
+- Free tier available for testing
+
+#### None / Fallback (Free, Always Available)
+
+**Configuration**:
+```bash
+LLM_PROVIDER=
+```
+
+**Implementation** (`_fallback_summarization`):
+- Determines risk classification from findings (High/Medium/Low based on severity counts)
+- Generates summary text from rule breach statistics
+- Suggests generic next actions (escalate, review, document)
+- Lightweight, no external dependencies
+
+**Cost**: $0
+
+### Response Validation
+
+Both `_call_openai` and `_call_huggingface` validate responses:
+
+```python
+# 1. Check for empty response
+if not response_text:
+    raise Exception("LLM returned empty response")
+
+# 2. Parse JSON
+try:
+    response_json = json.loads(response_text)
+except json.JSONDecodeError:
+    raise Exception(f"Invalid JSON: {response_text[:100]}...")
+
+# 3. Validate structure
+if not isinstance(response_json, dict):
+    raise Exception(f"Expected dict, got {type(response_json).__name__}")
+
+# 4. Validate summary field
+summary = response_json.get("summary", "")
+if not summary:
+    summary = "Assessment complete. Review findings below."
+
+# 5. Validate risk classification
+risk = str(response_json.get("risk_classification", "Medium")).title()
+if risk not in ["Low", "Medium", "High"]:
+    logger.warning(f"Invalid risk: {risk}, defaulting to Medium")
+    risk = "Medium"
+
+# 6. Validate next_actions
+next_actions = response_json.get("next_actions", [])
+if not isinstance(next_actions, list):
+    next_actions = []
+next_actions = [str(a).strip() for a in next_actions if a]
+if not next_actions:
+    next_actions = ["Review findings", "Document actions"]
+```
+
+**Key Design**: Response validation is strict. If LLM misbehaves, fallback is used immediately.
+
+### Prompt Design
+
+Both providers receive the same structured prompt:
+
+```python
+prompt = """
+You are a compliance analyst assistant reviewing AML/KYC findings.
+
+IMPORTANT CONSTRAINTS:
+- You are analyzing PRE-DETERMINED, DETERMINISTIC findings
+- You must NOT reinterpret, override, or challenge these findings
+- Your role is to explain implications and suggest next steps
+- All decisions remain with human compliance officers
+
+DATASET INFORMATION:
+- File: {filename}
+- Total Records: {total_records}
+- Columns: {columns}
+
+DETERMINISTIC COMPLIANCE FINDINGS:
+[formatted findings...]
+
+FINDING SUMMARY:
+- Total Rule Breaches: {count}
+- High Severity: {high_count}
+- Medium Severity: {medium_count}
+- Low Severity: {low_count}
+
+TASK:
+Provide a JSON response with exactly this structure:
+{
+  "summary": "2-3 sentence plain-English summary",
+  "risk_classification": "Low | Medium | High",
+  "next_actions": ["Action 1", "Action 2", "Action 3"]
+}
+
+Remember:
+- Do NOT suggest ignoring findings
+- Do NOT reinterpret rules
+- Focus on: What should the compliance officer review next?
+"""
+```
+
+**Key Design**: Prompt is deterministic and explicit. LLM cannot make decisions, only explain findings.
+
+### Adding New Providers
+
+To add support for another LLM provider (e.g., Anthropic Claude, local Ollama):
+
+1. **Create provider function** in `app/services/llm.py`:
+   ```python
+   def _call_your_provider(prompt, check_id, logger) -> Tuple[str, str, List[str]]:
+       # Implementation here
+       # Check API key
+       # Call API
+       # Validate response
+       # Return (summary, risk_classification, next_actions)
+   ```
+
+2. **Add to provider dispatch** in `summarize_findings()`:
+   ```python
+   elif llm_provider == "your-provider":
+       return _call_your_provider(prompt, check_id, logger)
+   ```
+
+3. **Update `.env` configuration**
+
+4. **Add dependencies** to `requirements.txt` if needed
+
+5. **Test** with sample data
+
+---
+
 ## Key Technical Design Decisions
 
 ### Decision 1: Multi-Step Explicit Agent vs. Monolithic AI Call

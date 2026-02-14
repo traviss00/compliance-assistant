@@ -9,8 +9,14 @@ Design Philosophy:
 - LLM output is structured and validated before use
 - Fallback to rule-based summary if LLM fails (graceful degradation)
 - Clear audit trail of what was sent to LLM and what was received
+- Support for multiple LLM providers (OpenAI, Hugging Face)
 
 Key Principle: The LLM informs, it does not decide.
+
+Configuration:
+- LLM_PROVIDER: Set to "openai" or "huggingface" (optional, defaults to fallback)
+- OPENAI_API_KEY: Required if using OpenAI
+- HUGGINGFACE_API_KEY: Required if using Hugging Face
 """
 
 import os
@@ -18,11 +24,18 @@ import json
 import logging
 from typing import List, Dict, Any, Tuple, Optional
 
+# Import optional LLM libraries
 try:
     import openai
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False
+
+try:
+    import requests
+    REQUESTS_AVAILABLE = True
+except ImportError:
+    REQUESTS_AVAILABLE = False
 
 
 def summarize_findings(
@@ -68,10 +81,20 @@ def summarize_findings(
     
     logger.info(f"[{check_id}] LLM Prompt length: {len(prompt)} characters")
     
-    # Try LLM summarization
+    # Determine which LLM provider to use
+    llm_provider = os.getenv("LLM_PROVIDER", "").lower()
+    
+    # Try LLM summarization with selected provider
     try:
-        summary, risk, actions = _call_openai(prompt, check_id, logger)
-        logger.info(f"[{check_id}] LLM summarization successful. Risk: {risk}")
+        if llm_provider == "openai":
+            summary, risk, actions = _call_openai(prompt, check_id, logger)
+        elif llm_provider == "huggingface":
+            summary, risk, actions = _call_huggingface(prompt, check_id, logger)
+        else:
+            # No valid provider configured, skip to fallback
+            raise Exception(f"LLM_PROVIDER not set or invalid: {llm_provider or 'empty'}")
+        
+        logger.info(f"[{check_id}] LLM ({llm_provider}) summarization successful. Risk: {risk}")
         return summary, risk, actions
     
     except Exception as e:
@@ -302,6 +325,184 @@ def _call_openai(
     except Exception as e:
         logger.error(f"[{check_id}] OpenAI API error: {e}")
         raise
+
+
+def _call_huggingface(
+    prompt: str,
+    check_id: str,
+    logger: logging.Logger
+) -> Tuple[str, str, List[str]]:
+    """
+    Call Hugging Face Inference API to summarize findings.
+    
+    Supports Hugging Face's free inference API with pooled quota or 
+    premium endpoints for dedicated models.
+    
+    Error Handling:
+    - API key missing → Clear error message
+    - Network error → Logged with recovery instructions
+    - Invalid JSON response → Validated and sanitized
+    - Invalid risk classification → Defaults to Medium
+    
+    Args:
+        prompt: Formatted prompt for the LLM
+        check_id: Audit identifier
+        logger: Logger instance
+    
+    Returns:
+        Tuple of (summary, risk_classification, next_actions)
+    
+    Raises:
+        Exception: If API call fails (caller will use fallback)
+    """
+    
+    # Check: requests library available
+    if not REQUESTS_AVAILABLE:
+        raise Exception(
+            "requests library not installed. Install with: pip install requests"
+        )
+    
+    # Check: API key configured
+    api_key = os.getenv("HUGGINGFACE_API_KEY")
+    if not api_key:
+        raise Exception(
+            "HUGGINGFACE_API_KEY not configured. "
+            "Get from: https://huggingface.co/settings/tokens"
+        )
+    
+    # Determine model(s) to try. Allow override via HUGGINGFACE_MODEL env var.
+    # Uses the HuggingFace Chat Completions API (OpenAI-compatible endpoint).
+    default_models = [
+        "google/flan-t5-small",
+        "mistralai/Mistral-7B-Instruct-v0.1",
+        "meta-llama/Llama-2-7b-chat-hf",
+        "meta-llama/Llama-2-13b-chat-hf",
+        "moonshotai/Kimi-K2-Instruct-0905:groq"
+
+    ]
+
+    env_model = os.getenv("HUGGINGFACE_MODEL")
+    env_fallback = os.getenv("HUGGINGFACE_MODEL_FALLBACK")
+
+    if env_model:
+        models_to_try = [m.strip() for m in env_model.split(",") if m.strip()]
+    else:
+        models_to_try = default_models.copy()
+
+    # If an explicit fallback list provided, append those as well
+    if env_fallback:
+        models_to_try += [m.strip() for m in env_fallback.split(",") if m.strip()]
+
+    headers = {"Authorization": f"Bearer {api_key}"}
+
+    # Use HuggingFace Chat Completions endpoint (OpenAI-compatible API)
+    api_url = "https://router.huggingface.co/v1/chat/completions"
+
+    last_exc = None
+    for model_id in models_to_try:
+        logger.info(f"[{check_id}] Calling Hugging Face API (model: {model_id})...")
+
+        try:
+            # Call HuggingFace Chat Completions API (OpenAI-compatible format)
+            payload = {
+                "model": model_id,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "You are a compliance analyst assistant. Respond ONLY with valid JSON, no other text."
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                "temperature": 0.3,
+                "max_tokens": 500
+            }
+
+            response = requests.post(api_url, headers=headers, json=payload, timeout=60)
+            response.raise_for_status()
+
+            result = response.json()
+            logger.info(f"[{check_id}] ✓ Hugging Face response received (model: {model_id})")
+            # Successfully got a response; break to continue processing.
+            break
+
+        except requests.exceptions.HTTPError as he:
+            last_exc = he
+            logger.error(f"[{check_id}] Hugging Face API HTTP error for model {model_id}: {he}")
+            # Try next model if this one fails
+            logger.warning(f"[{check_id}] Model {model_id} failed. Trying next model...")
+            continue
+
+        except requests.exceptions.RequestException as re:
+            last_exc = re
+            logger.error(f"[{check_id}] Hugging Face API request failed for model {model_id}: {re}")
+            # Try next model for transient network errors
+            continue
+
+    # After trying models, ensure we have a successful response in `result`.
+    if 'result' not in locals():
+        raise Exception(f"All Hugging Face model attempts failed. Last error: {last_exc}")
+
+    # Handle response format - Chat Completions API returns OpenAI-compatible structure
+    if "choices" in result and len(result["choices"]) > 0:
+        response_text = result["choices"][0].get("message", {}).get("content", "").strip()
+    else:
+        raise Exception(f"Unexpected Hugging Face API response format: {result}")
+
+    # Validate response is not empty
+    if not response_text:
+        raise Exception("Hugging Face returned empty response")
+
+    # Try to extract JSON from response (model may wrap it in extra text)
+    json_start = response_text.find('{')
+    json_end = response_text.rfind('}') + 1
+
+    if json_start != -1 and json_end > json_start:
+        response_text = response_text[json_start:json_end]
+
+    # Parse JSON response with error handling
+    try:
+        response_json = json.loads(response_text)
+    except json.JSONDecodeError as e:
+        logger.error(f"[{check_id}] Failed to parse Hugging Face response as JSON: {e}")
+        raise Exception(
+            f"Hugging Face returned invalid JSON: {str(e)}. Response: {response_text[:100]}..."
+        )
+
+    # Validate response structure
+    if not isinstance(response_json, dict):
+        raise Exception(f"Expected JSON object, got {type(response_json).__name__}")
+
+    # Extract fields with validation
+    summary = response_json.get("summary", "")
+    if not summary or not isinstance(summary, str):
+        logger.warning(f"[{check_id}] Invalid summary field in Hugging Face response")
+        summary = "Assessment complete. Review findings below."
+
+    risk_classification = str(response_json.get("risk_classification", "Medium")).title()
+    if risk_classification not in ["Low", "Medium", "High"]:
+        logger.warning(
+            f"[{check_id}] Invalid risk classification from Hugging Face: {risk_classification}. Defaulting to 'Medium'"
+        )
+        risk_classification = "Medium"
+
+    next_actions = response_json.get("next_actions", [])
+    if not isinstance(next_actions, list):
+        logger.warning(f"[{check_id}] Invalid next_actions field (not a list), using default")
+        next_actions = []
+
+    # Validate and clean action items
+    next_actions = [str(a).strip() for a in next_actions if a]
+    if len(next_actions) == 0:
+        next_actions = ["Review findings with compliance officer", "Document any actions taken"]
+
+    logger.info(
+        f"[{check_id}] ✓ Hugging Face parsing successful. Risk: {risk_classification}, Actions: {len(next_actions)}"
+    )
+
+    return summary, risk_classification, next_actions
 
 
 def _fallback_summarization(

@@ -72,50 +72,147 @@ Regulators examine three things in compliance systems: **explainability**, **aud
 ## Quick Start
 
 ### Prerequisites
+
 - Python 3.9+ (tested on 3.11, 3.13)
 - pip (comes with Python)
-- OpenAI API key (optional—system works without it)
+- Git
 
-### Setup (Local Machine)
+### Quick Local Run (recommended)
+
+1. Clone the repo and enter it:
 
 ```bash
 git clone <repo-url>
 cd compliance-assistant
-
-# Create virtual environment
-python -m venv venv
-
-# Activate (choose for your OS):
-# Windows (Command Prompt): venv\Scripts\activate
-# Windows (PowerShell): .\venv\Scripts\Activate.ps1
-# Mac/Linux: source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Set API key (optional - system works without it)
-# Windows: set OPENAI_API_KEY=sk-your-key-here
-# Mac/Linux: export OPENAI_API_KEY=sk-your-key-here
-
-# Start server
-python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Then open `http://localhost:8000` in your browser.
+2. Create and activate a virtual environment:
 
-### Setup (GitHub Codespaces - Recommended)
+Windows (Command Prompt):
+```cmd
+python -m venv venv
+venv\Scripts\activate
+```
 
-1. Open this repository: https://github.com/traviss00/compliance-assistant
-2. Click **Code** → **Codespaces** → **Create codespace on main**
-3. Wait 2-3 minutes for environment setup
-4. Once ready, run in the terminal:
+Windows (PowerShell):
+```powershell
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+```
+
+macOS / Linux:
+```bash
+python -m venv venv
+source venv/bin/activate
+```
+
+3. Install dependencies:
 
 ```bash
-export OPENAI_API_KEY="your-key-here"  # Optional
+pip install -r requirements.txt
+```
+
+4. (Optional) Create a `.env` file from `env.example` and set any API keys you need:
+
+```bash
+# Copy template
+cp env.example .env
+
+# Edit .env and set keys, e.g.:
+# LLM_PROVIDER=openai
+# OPENAI_API_KEY=sk-your-key-here
+# HUGGINGFACE_API_KEY=hf_your-token-here
+```
+
+On Windows PowerShell you can edit `.env` with Notepad or your editor of choice.
+
+5. Start the server:
+
+```bash
 python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-5. Click "Open in Browser" or visit `http://localhost:8000`
+6. Open the UI in your browser: `http://localhost:8000`
+
+### Quick Codespaces Run (alternative)
+
+1. Open this repository in GitHub Codespaces.
+2. In the Codespace terminal, optionally set API keys and run:
+
+```bash
+# Optional in Codespaces
+export OPENAI_API_KEY="your-key-here"
+
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+3. Click "Open in Browser" or visit the forwarded port URL provided by Codespaces.
+
+---
+
+### Environment variables & .env (single place for all OSes)
+
+You can either set environment variables directly in your shell (temporary for the session) or create a `.env` file from `env.example` and edit it. The important variables are:
+
+- `LLM_PROVIDER` — set to `openai`, `huggingface`, or leave empty for rule-based fallback
+- `OPENAI_API_KEY` — your OpenAI API key (if using `openai`)
+- `HUGGINGFACE_API_KEY` — your HF token (if using `huggingface`)
+
+Temporary (session) examples:
+
+PowerShell (temporary for current session):
+```powershell
+$env:LLM_PROVIDER = "openai"
+$env:OPENAI_API_KEY = "sk-your-key-here"
+```
+
+Command Prompt (temporary for current session):
+```cmd
+set LLM_PROVIDER=openai
+set OPENAI_API_KEY=sk-your-key-here
+```
+
+Bash / Git Bash / macOS (temporary for current session):
+```bash
+export LLM_PROVIDER=openai
+export OPENAI_API_KEY=sk-your-key-here
+```
+
+Persistent via `.env` (cross-shell):
+
+1. Copy `env.example` to `.env`:
+
+```bash
+cp env.example .env
+```
+
+2. Edit `.env` with your editor and set the values (no `export`/`set` prefixes):
+
+```
+LLM_PROVIDER=openai
+OPENAI_API_KEY=sk-your-key-here
+HUGGINGFACE_API_KEY=
+```
+
+3. Restart your terminal or set the variables in the current session from the file:
+
+Bash (load from file for current session):
+```bash
+set -a; source .env; set +a
+```
+
+PowerShell (load from file for current session):
+```powershell
+Get-Content .env | ForEach-Object {
+   if ($_ -and -not $_.StartsWith('#')) {
+      $parts = $_ -split '='; $env[$parts[0]] = $parts[1]
+   }
+}
+```
+
+Note: Some deployment environments (e.g., Codespaces, Docker) provide separate UI or config for environment variables—use those for persistent values there.
+
+---
 
 ---
 
@@ -124,7 +221,7 @@ python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 1. Go to `http://localhost:8000`
 2. Drag `sample_data.csv` onto the upload area (or click to browse)
 3. Click **Upload & Assess**
-4. View findings, risk classification, and AI summary
+4. View findings, risk classification, and AI summary (or rule-based fallback)
 
 **Sample CSV** (create as `sample_customers.csv`):
 ```csv
@@ -136,6 +233,87 @@ Ahmed Hassan,Syria,2024-02-10,2500000,incomplete
 ```
 
 **Expected Result**: High risk due to PEP match (Putin) and high-risk countries (Iran, Syria).
+
+---
+
+## LLM Configuration
+
+The system supports multiple LLM providers for summarization, or can work without any (rule-based fallback only).
+
+### AI-Powered vs Rule-Based Summaries
+
+The system generates two types of summaries depending on whether an LLM is configured:
+
+**Without LLM (Rule-Based Fallback):**
+- Deterministic, predictable summaries generated from rule logic
+- Bullet-point format with severity counts
+- Fast (instant), no external API calls needed
+- Great for testing, offline use, or cost-sensitive deployments
+
+![Rule-Based Summary](docs/summary-ruleset.png)
+
+**With LLM (AI-Powered):**
+- Rich, narrative summaries with deeper insights
+- Plain-English explanations of implications and context
+- Specific, actionable next steps tailored to findings
+- Slightly slower (API call overhead) but much more useful for compliance officers
+
+![AI-Powered Summary](docs/summary-ai.png)
+
+Both approaches:
+- Produce the same deterministic rule findings
+- Cannot override or reinterpret the rules
+- Include full audit trail
+- Work with graceful degradation (fallback if LLM fails)
+
+The **first image** (above) shows the rule-based fallback: a concise bullet-point summary with severity breakdown and basic next actions.
+
+The **second image** (above) shows the AI-powered summary: a narrative explanation with specific insights ("78 records triggering at least one AML/KYC rule"), context about what the findings mean, and tailored next actions for each severity tier.
+
+---
+
+### Supported Providers
+
+| Provider | Cost | Best For | Setup |
+|----------|------|----------|-------|
+| **None (Fallback)** | Free | Testing, PoC, offline | None |
+| **OpenAI** | ~$0.001/request | Production, best quality | 5 min |
+| **Hugging Face Chat API** | Free tier/paid | Open-source, no vendor lock-in | 5 min |
+
+**Important**: The system **always works** without any LLM. If no provider is configured or the API fails, it automatically uses rule-based summaries.
+
+### Provider Details
+
+**OpenAI (`gpt-3.5-turbo` / `gpt-4o`)**:
+- Reliable, high-quality summaries
+- Costs ~$0.0005–$0.003 per request
+- Fast and well-tested
+- Requires active OpenAI account with API credits
+
+**Hugging Face Chat Completions API**:
+- Uses OpenAI-compatible Chat Completions endpoint
+- Supports multiple open-source models (Llama 2, Mistral, etc.)
+- Free tier available with rate limits
+- No vendor lock-in (models are open-source)
+- Endpoint: `https://router.huggingface.co/v1/chat/completions`
+
+For provider setup, see the `Environment variables & .env` section above — set `LLM_PROVIDER` to `openai` or `huggingface` and add the corresponding API key. If you leave `LLM_PROVIDER` empty, the system will use rule-based fallback.
+### Verify It's Working
+
+Check the server logs after uploading a CSV:
+
+```
+# ✓ OpenAI was used
+[20260214_123456] ✓ LLM (openai) summarization successful. Risk: High
+
+# ✓ Hugging Face was used
+[20260214_123456] ✓ LLM (huggingface) summarization successful. Risk: Medium
+
+# ✓ Fallback (no LLM configured or API unavailable)
+[20260214_123456] [FALLBACK] Using rule-based summary (LLM unavailable)
+```
+
+**See [ARCHITECTURE.md](ARCHITECTURE.md#multi-provider-llm-integration) for detailed LLM configuration and technical details.**
 
 ---
 
