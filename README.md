@@ -478,3 +478,7 @@ Business: "We're getting too many false positives on Rule 4."
 **For technical implementation details, design decisions, governance considerations, and production roadmap:**
 
 👉 **See [ARCHITECTURE.md](ARCHITECTURE.md)**
+
+## License
+
+This project is licensed under the MIT License.
